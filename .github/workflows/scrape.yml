@@ -1,0 +1,50 @@
+name: scrape-prices
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"     # every 6 hours (UTC)
+  workflow_dispatch:           # lets you run it manually
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check end date
+        id: gate
+        run: |
+          END_DATE="2026-10-31"    # permission was temporary: adjust if boAt's email says otherwise
+          if [[ "$(date -u +%F)" > "$END_DATE" ]]; then
+            echo "Past end date, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
+        run: pip install requests
+
+      - name: Run scraper
+        if: steps.gate.outputs.skip != 'true'
+        run: python scraper/shopify_scraper.py
+
+      - name: Save updated database
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          git config user.name "price-bot"
+          git config user.email "price-bot@users.noreply.github.com"
+          git add data/prices.db
+          git diff --cached --quiet || git commit -m "data: scrape $(date -u +%FT%TZ)"
+          git push
