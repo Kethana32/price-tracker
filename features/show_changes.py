@@ -31,3 +31,5 @@ print(changed.sort_values("change_pct", ascending=False)[cols].head(15).to_strin
 
 big_drops = (changed["change_pct"] <= -5).sum()
 print(f"\nDrops of 5% or more: {big_drops}")
+print("Runs with at least one change:", changed["scraped_at"].nunique())
+print("Approx. distinct products that changed:", changed["name"].nunique())
